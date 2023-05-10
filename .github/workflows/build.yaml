@@ -1,0 +1,49 @@
+name: UCFGs caching test
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0 # Disable shallow clones
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.11
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 6.0.x
+      - name: Install scanner
+        shell: powershell
+        run: |
+          New-Item -Path .\.sonar\scanner -ItemType Directory
+          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+      - name: Build and analyze
+        shell: powershell
+        run: |
+          # $env:SONAR_USER_HOME = $jarsCache
+
+          # End step run to populate cache of jars
+          dotnet restore .\src\NodaTime.sln
+          .\.sonar\scanner\dotnet-sonarscanner begin /o:"antonioaversa" /k:"nodatime-ucfg-caching" /d:sonar.login="${{ secrets.SONAR_TOKEN_1 }}" /d:sonar.host.url="https://peach.sonarsource.com" /d:sonar.verbose=true        
+          dotnet build .\src\NodaTime.sln --no-restore
+          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN_1 }}"
+
+          # Replace custom jar for sonar-csharp-plugin
+          $jarsCache = "C:\Users\runneradmin\.sonar\cache"
+          $csharpPluginFullPath = Get-ChildItem -Path $jarsCache -File -Recurse `
+            | %{ if ($_.Name -eq "sonar-csharp-plugin.jar") { $_.FullName } }
+          Write-Output "C# Plugin full path: $csharpPluginFullPath"
+          Get-ChildItem $jarsCache
+          Move-Item -Path .\hardcoded-scanner\sonar-csharp-plugin-9.1-SNAPSHOT.jar -Destination $csharpPluginFullPath
+
+          # Full run
+          .\.sonar\scanner\dotnet-sonarscanner begin /o:"antonioaversa" /k:"nodatime-ucfg-caching" /d:sonar.login="${{ secrets.SONAR_TOKEN_1 }}" /d:sonar.host.url="https://peach.sonarsource.com" /d:sonar.verbose=true        
+          dotnet build .\src\NodaTime.sln --no-restore
+          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN_1 }}"

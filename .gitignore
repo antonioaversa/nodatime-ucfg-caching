@@ -69,3 +69,4 @@ build/history
 # If coverage fails, we don't want to add the pinning global.json
 # file into source control
 src/NodaTime.Test/global.json
+.sonarqube/
