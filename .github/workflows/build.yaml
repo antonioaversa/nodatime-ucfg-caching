@@ -27,23 +27,18 @@ jobs:
       - name: Build and analyze
         shell: powershell
         run: |
-          # $env:SONAR_USER_HOME = $jarsCache
+          # $sqHostUrl = "http://34.140.200.96"
+          # $sqToken = "${{ secrets.SQ_EU_TOKEN }}"
+          $sqHostUrl = "http://34.30.43.46"
+          $sqToken = "${{ secrets.SQ_US_TOKEN }}"
 
-          # End step run to populate cache of jars
-          dotnet restore .\src\NodaTime.sln
-          .\.sonar\scanner\dotnet-sonarscanner begin /o:"antonioaversa" /k:"nodatime-ucfg-caching" /d:sonar.login="${{ secrets.SONAR_TOKEN_1 }}" /d:sonar.host.url="https://peach.sonarsource.com" /d:sonar.verbose=true        
-          dotnet build .\src\NodaTime.sln --no-restore
-          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN_1 }}"
+          $out = New-Object byte[] 500000000
+          (New-Object Random).NextBytes($out)
+          [IO.File]::WriteAllBytes('C:\Temp\ucfg_cs2.zip', $out)
 
-          # Replace custom jar for sonar-csharp-plugin
-          $jarsCache = "C:\Users\runneradmin\.sonar\cache"
-          $csharpPluginFullPath = Get-ChildItem -Path $jarsCache -File -Recurse `
-            | %{ if ($_.Name -eq "sonar-csharp-plugin.jar") { $_.FullName } }
-          Write-Output "C# Plugin full path: $csharpPluginFullPath"
-          Get-ChildItem $jarsCache
-          Move-Item -Path .\hardcoded-scanner\sonar-csharp-plugin-9.1-SNAPSHOT.jar -Destination $csharpPluginFullPath
-
-          # Full run
-          .\.sonar\scanner\dotnet-sonarscanner begin /o:"antonioaversa" /k:"nodatime-ucfg-caching" /d:sonar.login="${{ secrets.SONAR_TOKEN_1 }}" /d:sonar.host.url="https://peach.sonarsource.com" /d:sonar.verbose=true        
-          dotnet build .\src\NodaTime.sln --no-restore
-          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login="${{ secrets.SONAR_TOKEN_1 }}"
+          $projectKey = "nodatime-ucfg-caching-github"
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:$projectKey /d:sonar.login=$sqToken /d:sonar.host.url=$sqHostUrl /d:sonar.verbose=true
+          dotnet build .\src\NodaTime.sln
+          Measure-Command { 
+              .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.login=$sqToken 
+          }
